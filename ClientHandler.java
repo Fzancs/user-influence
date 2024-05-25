@@ -81,6 +81,7 @@ class ClientHandler implements Runnable {
 
     private void resetOpinion() {
         this.opinion = new Random().nextDouble();
+        this.opinion = Math.round(this.opinion * 100.0) / 100.0;
         System.out.println("New opinion: " + opinion);
         out.println("Opinion:" + opinion + ":" + userId);  // Sending the user ID with the opinion
     }

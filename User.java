@@ -41,11 +41,10 @@ public class User {
         if (message.startsWith("Topic:")) {
             currentTopic = message.substring(6); // Extract topic after "Topic:"
             System.out.println("New topic received: " + currentTopic);
-            resetOpinion();
         } else if (message.startsWith("Opinion:")) {
             String[] parts = message.split(":");
             otherOpinion = Double.parseDouble(parts[1]);
-            // System.out.println("Received opinion from another user on topic " + currentTopic + ": " + otherOpinion);
+            System.out.println("opinion: " + opinion +", otherOpinion:"+ otherOpinion );
             // updateOpinion(otherOpinion);
         } else if (message.startsWith("Proof")) {
             // System.out.println(message); // Log the interaction proof
@@ -53,20 +52,15 @@ public class User {
         }
     }
 
-    private void resetOpinion() {
-        // Reset opinion randomly whenever a new topic is received
-        opinion = Math.round(Math.random() * 100.0) / 100.0;
-        System.out.println("Opinion reset for new topic. Current opinion: " + opinion);
-    }
-
     private void updateOpinion(double otherOpinion) {
         // Calculate or retrieve the influence for the current topic
         Double influence = influenceMap.getOrDefault(currentTopic, new Random().nextDouble());
+        influence = Math.round(influence * 100.0) / 100.0;
         influenceMap.put(currentTopic, influence);
         // Update opinion based on influence
         opinion = opinion + (otherOpinion - opinion) * influence;
         opinion = Math.round(opinion * 100.0) / 100.0; // Round to two decimal places
-        System.out.println("Updated opinion: " + opinion + "influence: " + influence);
+        System.out.println("Updated opinion: " + opinion + ", influence: " + influence);
     }
 
     private void closeEverything() {
