@@ -49,24 +49,26 @@ public class User {
         selectedOpinion = topicOpinions.get(selectedTopic);
         
         output.println(selectedTopic + ":" + selectedOpinion); // topic + selectedOpinion
-        // output.flush();
         // System.out.println("UserA Sending opinion: " + selectedOpinion + " on topic: " + selectedTopic);
     }
 
 
     public void startSending() {
+        Random random = new Random();
+        int frequency = 1 + random.nextInt(10); // Generate random frequency between 1 and 10 seconds
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         executor.scheduleAtFixedRate(() -> {
 
             try {
                 // output.println(1);
+                // System.out.println("frequency: " + frequency);
                 sendRandomTopicOpinion();
             } catch (Exception e) {
                 System.out.println("Error while sending: " + e.getMessage());
                 executor.shutdown(); // Shut down the executor on error
                 closeEverything();
             }
-        }, 5, 5, TimeUnit.SECONDS); // Start immediately, repeat every 5 seconds
+        }, 5, frequency, TimeUnit.SECONDS); // Start immediately, repeat every 5 seconds
     }
 
     public void listenForMessages() {
@@ -75,8 +77,6 @@ public class User {
                 String newOp;
                 
                 while ((newOp = input.readLine()) != null) {
-
-
 
                     if (newOp.startsWith("Topic:")) {
                         String[] parts = newOp.split(":");
@@ -98,7 +98,6 @@ public class User {
                         System.out.println("Received opinion: " + opinionPart + ", topic: " + topicPart); 
 
                         double otherOpinion = Double.parseDouble(String.valueOf(opinionPart));
-                        // double otherOpinion = Double.parseDouble(opinionPart);
 
                         // When new user are entering add them an opinion to topics
                         Double tempOpinion = topicOpinions.get(topicPart);
@@ -108,16 +107,17 @@ public class User {
                         selectedOpinion = Math.round(selectedOpinion * 100.0) / 100.0; // Round to two decimal places
                         System.out.println("New Opinion:" + selectedOpinion + ", influence: " +influenceMap.get(whichUser) + " from " + whichUser); // receive selectedOpinion from random user
                         topicOpinions.put(topicPart, selectedOpinion);  //ajoute topic
-                        // showAllOpinions();
+                        // showAllOpinions(); 
                     }
                 }
             } catch (IOException e) {
                 System.out.println("Error while receiving: " + e.getMessage());
+                closeEverything();
             }
         }).start();
     }
 
-    // Show all opinions on current user
+    // show every topic and opinion on current user
     public void showAllOpinions() {
         for (Map.Entry<String, Double> entry : topicOpinions.entrySet()) {
             System.out.println("Topic: " + entry.getKey() + ", Opinion: " + entry.getValue());
@@ -141,10 +141,9 @@ public class User {
 
             if(choice == 1){
                 if (args.length < 1) {
-                    System.out.println("Usage: java User Choice <host> <port>");
+                    System.out.println("Usage: java User Choice ");
                     return;
                 }
-                // client.topicOpinions.get(DEFAULT_TOPIC);
                 System.out.println("Opinion: " +client.topicOpinions.get(DEFAULT_TOPIC) + " on topic: " + DEFAULT_TOPIC) ;
                 client.output.println(choice);
                 client.startSending();
@@ -154,19 +153,18 @@ public class User {
             else if(choice == 2){ // Ajouter topic avec user ou Proposer
 
                 if (args.length < 2) {
-                    System.err.println("Usage: java Proposer choice --topic='nouveau topic'");
+                    System.err.println("Usage: java Proposer --topic='nouveau topic'");
                     System.exit(1);
                 }
 
-                // int choice = Integer.parseInt(args[0]);
                 String topic = args[1].split("=")[1];
                 System.out.println(topic);
-                client.output.println(choice);
+                client.output.println(2);
                 client.output.println(topic);
             }
 
             else if(choice == 3){
-                client.showAllOpinions();
+                // client.showAllOpinions();
                 System.out.println("Choice 3");
             }
             else{
