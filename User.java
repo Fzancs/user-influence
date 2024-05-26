@@ -113,6 +113,7 @@ public class User {
             } catch (IOException e) {
                 System.out.println("Error while receiving: " + e.getMessage());
                 closeEverything();
+                System.exit(0); // Forcer la fermeture du client
             }
         }).start();
     }
