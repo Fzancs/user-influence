@@ -18,19 +18,28 @@ public class Server {
         while (true) {
             Socket clientSocket = serverSocket.accept();
             ClientHandler clientHandler = new ClientHandler(clientSocket, this);
-            clients.add(clientHandler);
+            System.out.println("Client  " + clientHandler);
+            // clients.add(clientHandler);
             pool.execute(clientHandler);
         }
-    }
-
-    public synchronized void addClient(ClientHandler clientHandler) {
-        clients.add(clientHandler);
-        System.out.println("Client added: " + clientHandler.getClientInfo());
     }
 
     public synchronized void removeClient(ClientHandler clientHandler) {
         clients.remove(clientHandler);
         System.out.println("Client removed: " + clientHandler.getClientInfo());
+    }
+
+    public boolean addClient(ClientHandler newClient) {
+        synchronized (clients) {
+            for (ClientHandler client : clients) {
+                if (client.getSocket().getInetAddress().equals(newClient.getSocket().getInetAddress()) &&
+                    client.getSocket().getPort() == newClient.getSocket().getPort()) {
+                    return false; // Client already exists
+                }
+            }
+            clients.add(newClient);
+            return true;
+        }
     }
 
     public synchronized List<ClientHandler> getClients() {

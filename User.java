@@ -1,66 +1,30 @@
 import java.io.*;
 import java.net.*;
-import java.util.HashMap;
+import java.util.*;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.*;
 
 public class User {
     private Socket socket;
     private BufferedReader input;
     private PrintWriter output;
-    private String currentTopic;
-    private double opinion;
-    private double otherOpinion;
-    private Map<String, Double> influenceMap = new HashMap<>();
+    private Map<String, Double> topicOpinions = new ConcurrentHashMap<>();
+    private static final String DEFAULT_TOPIC = "help";
+    private Map<String, Double> influenceMap = new ConcurrentHashMap<>();
+    private String selectedTopic;
+    private double selectedOpinion;
 
     public User(String host, int port) throws IOException {
         // Connect to the server and setup input and output streams
-        socket = new Socket(host, port);
-        input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        output = new PrintWriter(socket.getOutputStream(), true);
-        opinion = Math.round(Math.random() * 100.0) / 100.0; // Initialize the opinion randomly
+        this.socket = new Socket(host, port);
+        this.input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.output = new PrintWriter(socket.getOutputStream(), true);
+        this.topicOpinions.put(DEFAULT_TOPIC, Math.round(Math.random() * 100.0) / 100.0); // Initialize default topic with a default opinion value
+        this.selectedOpinion = Math.round(Math.random() * 100.0) / 100.0; // Initialize the opinion randomly
+
         System.out.println("Connected to the server at " + host + ":" + port);
-    }
 
-    public void listenForMessages() {
-        // Listen for messages from the server
-        try {
-            String message;
-            while ((message = input.readLine()) != null) {
-                handleServerMessage(message);
-            }
-        } catch (IOException e) {
-            System.out.println("Lost connection to the server.");
-            closeEverything();
-        }
-    }
-
-    private void handleServerMessage(String message) {
-        // Handle different types of messages from the server
-        System.out.println("[Serveur] " + message); // Log for debugging
-        if (message.startsWith("Topic:")) {
-            currentTopic = message.substring(6); // Extract topic after "Topic:"
-            System.out.println("New topic received: " + currentTopic);
-        } else if (message.startsWith("Opinion:")) {
-            String[] parts = message.split(":");
-            otherOpinion = Double.parseDouble(parts[1]);
-            System.out.println("opinion: " + opinion +", otherOpinion:"+ otherOpinion );
-            // updateOpinion(otherOpinion);
-        } else if (message.startsWith("Proof")) {
-            // System.out.println(message); // Log the interaction proof
-            updateOpinion(otherOpinion);
-        }
-    }
-
-    private void updateOpinion(double otherOpinion) {
-        // Calculate or retrieve the influence for the current topic
-        Double influence = influenceMap.getOrDefault(currentTopic, new Random().nextDouble());
-        influence = Math.round(influence * 100.0) / 100.0;
-        influenceMap.put(currentTopic, influence);
-        // Update opinion based on influence
-        opinion = opinion + (otherOpinion - opinion) * influence;
-        opinion = Math.round(opinion * 100.0) / 100.0; // Round to two decimal places
-        System.out.println("Updated opinion: " + opinion + ", influence: " + influence);
     }
 
     private void closeEverything() {
@@ -77,17 +41,138 @@ public class User {
         }
     }
 
-    public static void main(String[] args) {
-        if (args.length < 2) {
-            System.out.println("Usage: java User <host> <port>");
-            return;
+
+    private void sendRandomTopicOpinion() {
+        List<String> topics = new ArrayList<>(topicOpinions.keySet());
+        Random random = new Random();
+        selectedTopic = topics.get(random.nextInt(topics.size()));
+        selectedOpinion = topicOpinions.get(selectedTopic);
+        
+        output.println(selectedTopic + ":" + selectedOpinion); // topic + selectedOpinion
+        // output.flush();
+        // System.out.println("UserA Sending opinion: " + selectedOpinion + " on topic: " + selectedTopic);
+    }
+
+
+    public void startSending() {
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        executor.scheduleAtFixedRate(() -> {
+
+            try {
+                // output.println(1);
+                sendRandomTopicOpinion();
+            } catch (Exception e) {
+                System.out.println("Error while sending: " + e.getMessage());
+                executor.shutdown(); // Shut down the executor on error
+                closeEverything();
+            }
+        }, 5, 5, TimeUnit.SECONDS); // Start immediately, repeat every 5 seconds
+    }
+
+    public void listenForMessages() {
+        new Thread(() -> {
+            try {
+                String newOp;
+                
+                while ((newOp = input.readLine()) != null) {
+
+
+
+                    if (newOp.startsWith("Topic:")) {
+                        String[] parts = newOp.split(":");
+                        String topicPart = parts[1];
+                        System.out.println("Received new topic: " + topicPart);
+
+                        topicOpinions.put(topicPart, Math.round(Math.random() * 100.0) / 100.0);  //ajoute topic
+                    }
+                    else{
+                        String[] parts = newOp.split(":");
+                        String topicPart = parts[0];
+                        double opinionPart = Double.parseDouble(parts[1]);
+                        String whichUser = parts[2];
+
+                        Double influence = influenceMap.getOrDefault(whichUser, new Random().nextDouble());
+                        influence = Math.round(influence * 100.0) / 100.0;
+                        influenceMap.put(whichUser, influence); // getUser() + influence
+
+                        System.out.println("Received opinion: " + opinionPart + ", topic: " + topicPart); 
+
+                        double otherOpinion = Double.parseDouble(String.valueOf(opinionPart));
+                        // double otherOpinion = Double.parseDouble(opinionPart);
+
+                        // When new user are entering add them an opinion to topics
+                        Double tempOpinion = topicOpinions.get(topicPart);
+                        selectedOpinion = tempOpinion != null ? tempOpinion : Math.round(Math.random() * 100.0) / 100.0;
+
+                        selectedOpinion = selectedOpinion + (otherOpinion - selectedOpinion) * influenceMap.get(whichUser);
+                        selectedOpinion = Math.round(selectedOpinion * 100.0) / 100.0; // Round to two decimal places
+                        System.out.println("New Opinion:" + selectedOpinion + ", influence: " +influenceMap.get(whichUser) + " from " + whichUser); // receive selectedOpinion from random user
+                        topicOpinions.put(topicPart, selectedOpinion);  //ajoute topic
+                        // showAllOpinions();
+                    }
+                }
+            } catch (IOException e) {
+                System.out.println("Error while receiving: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    // Show all opinions on current user
+    public void showAllOpinions() {
+        for (Map.Entry<String, Double> entry : topicOpinions.entrySet()) {
+            System.out.println("Topic: " + entry.getKey() + ", Opinion: " + entry.getValue());
         }
-        String host = args[0];
-        int port = Integer.parseInt(args[1]);
+    }
+
+    public static void main(String[] args) {
 
         try {
+            if (args.length < 1) {
+                System.out.println("Missing argument.");
+                System.out.println("Usage: java Client <choice> [<arguments>]");
+                System.exit(1);
+            }
+
+            int choice = Integer.parseInt(args[0]);
+            String host = "localhost";
+            int port = 1234;
+
             User client = new User(host, port);
-            client.listenForMessages();
+
+            if(choice == 1){
+                if (args.length < 1) {
+                    System.out.println("Usage: java User Choice <host> <port>");
+                    return;
+                }
+                // client.topicOpinions.get(DEFAULT_TOPIC);
+                System.out.println("Opinion: " +client.topicOpinions.get(DEFAULT_TOPIC) + " on topic: " + DEFAULT_TOPIC) ;
+                client.output.println(choice);
+                client.startSending();
+                client.listenForMessages();
+        
+            }
+            else if(choice == 2){ // Ajouter topic avec user ou Proposer
+
+                if (args.length < 2) {
+                    System.err.println("Usage: java Proposer choice --topic='nouveau topic'");
+                    System.exit(1);
+                }
+
+                // int choice = Integer.parseInt(args[0]);
+                String topic = args[1].split("=")[1];
+                System.out.println(topic);
+                client.output.println(choice);
+                client.output.println(topic);
+            }
+
+            else if(choice == 3){
+                client.showAllOpinions();
+                System.out.println("Choice 3");
+            }
+            else{
+                System.out.println("Invalid choice.");
+            
+            }
         } catch (IOException e) {
             System.out.println("Cannot connect to the server. Check if the server is running and the host/port are correct.");
             e.printStackTrace();

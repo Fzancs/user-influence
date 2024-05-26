@@ -1,7 +1,6 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.concurrent.*;
 
 class ClientHandler implements Runnable {
     private Socket socket;
@@ -9,17 +8,12 @@ class ClientHandler implements Runnable {
     private BufferedReader in;
     private PrintWriter out;
     private int userId;  // Unique identifier for the user
-    private String currentTopic;
-    private double opinion;
-    private ScheduledExecutorService interactionExecutor;
-    private boolean interactionsStarted = false;
 
     public ClientHandler(Socket socket, Server server) throws IOException {
         this.socket = socket;
         this.server = server;
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.out = new PrintWriter(socket.getOutputStream(), true);
-        this.opinion = new Random().nextDouble();
         this.userId = generateUserId();  // Generate a unique user ID when initializing the client handler
     }
 
@@ -34,21 +28,56 @@ class ClientHandler implements Runnable {
     }
 
     public void run() {
+
+        
         try {
-            String input = in.readLine();
-            if (input != null) {
-                if (input.startsWith("--topic=")) {
-                    String topic = input.substring("--topic=".length());
-                    broadcastTopic(topic);
-                    closeConnections();
-                } else {
-                    server.addClient(this);
-                    while ((input = in.readLine()) != null) {
-                        processClientMessage(input);
-                    }
-                    server.removeClient(this);
-                }
+
+            int choice = Integer.parseInt(in.readLine());
+            // String topics = in.readLine();
+
+            System.out.println("choice: " + choice);
+            while (choice >= 1) {
+
+            if (choice == 1) { // choice 1
+                server.addClient(this);
+            //     List<ClientHandler> showCLients = new ArrayList<>(server.getClients());
+            //    System.out.println("Current Clients:");
+            //    for (ClientHandler client : showCLients) {
+            //        System.out.println(client);
+            //    }
+       
+               try {
+                   String opinion = in.readLine(); // recoit opinion de user
+                   List<ClientHandler> clients = new ArrayList<>(server.getClients());
+                   // Remove this ClientHandler from the list to avoid selecting itself
+                   clients.remove(this);
+       
+                   if (!clients.isEmpty()) {
+                       Random rand = new Random();
+                       int randomClientIndex = rand.nextInt(clients.size());
+                       ClientHandler selectedClient = clients.get(randomClientIndex);
+                    //    selectedClient.out.println(opinion); // send opinion to a random user
+                       selectedClient.shareTopicOpinion(opinion, this.getClientInfo());
+
+                   } else {
+                       System.out.println("No other clients available to receive opinion.");
+                   }
+               } catch (IOException e) {
+                   System.out.println("Error reading input: " + e.getMessage());
+                   closeConnections();                        
+                   break;
+               }
+
+            } else if (choice == 2) { // creer topic
+                String topic = in.readLine();
+                System.out.println("topic: " + topic);
+                broadcastTopic(topic);
+            } else {
+                System.out.println("Invalid choice: " + choice);
+                closeConnections();
+            }         
             }
+
         } catch (IOException e) {
             System.out.println("Error handling connection: " + e.getMessage());
             server.removeClient(this);
@@ -57,9 +86,6 @@ class ClientHandler implements Runnable {
         }
     }
 
-    private void processClientMessage(String message) {
-        // Additional message processing can be implemented here.
-    }
 
     private void closeConnections() {
         try {
@@ -72,56 +98,26 @@ class ClientHandler implements Runnable {
         server.removeClient(this);
     }
 
-    public void setTopic(String topic) {
-        this.currentTopic = topic;
-        System.out.println("New topic: '" + currentTopic + "'");
-        out.println("Topic:" + currentTopic);
-        resetOpinion();
-    }
-
-    private void resetOpinion() {
-        this.opinion = new Random().nextDouble();
-        this.opinion = Math.round(this.opinion * 100.0) / 100.0;
-        System.out.println("New opinion: " + opinion);
-        out.println("Opinion:" + opinion + ":" + userId);  // Sending the user ID with the opinion
+    private void shareTopicOpinion(String input, int userID){
+        String[] parts = input.split(":");
+        String topicPart = parts[0];
+        double opinionPart = Double.parseDouble(parts[1]);
+        
+        out.println(topicPart +":"+ opinionPart + ":" + userID); // send topic, opinion, from userId to a random user
+        System.out.println(this.getClientInfo() + " to " + userID + ", opinion:" + opinionPart + ", topic: " + topicPart);
     }
 
     public void broadcastTopic(String topic) {
         List<ClientHandler> clients = server.getClients();
         for (ClientHandler client : clients) {
-            client.setTopic(topic);
+            // client.setTopic(topic);
             System.out.println("Broadcasting topic '" + topic + "' to clients.");
-        }
-        if (!interactionsStarted) {
-            initiateInteractions();
-            interactionsStarted = true;
+            client.out.println("Topic:" + topic);
         }
     }
 
-    private void initiateInteractions() {
-        interactionExecutor = Executors.newScheduledThreadPool(1);
-        interactionExecutor.scheduleAtFixedRate(this::performInteractions, 5, 5, TimeUnit.SECONDS);
+    public Socket getSocket() {
+        return this.socket;
     }
 
-    public void performInteractions() {
-        List<ClientHandler> clients = server.getClients();
-        if (clients.size() > 1) {
-            Random rand = new Random();
-            for (int i = 0; i < clients.size(); i++) {
-                int index = rand.nextInt(clients.size());
-                ClientHandler client = clients.get(i);
-                ClientHandler otherClient = clients.get(index);
-                while (otherClient == client) {
-                    index = rand.nextInt(clients.size());
-                    otherClient = clients.get(index);
-                }
-                System.out.println("Initiating interaction between " + client.getClientInfo() + " and " + otherClient.getClientInfo());
-                client.sendProofAndOpinion(otherClient);
-            }
-        }
-    }
-
-    private void sendProofAndOpinion(ClientHandler other) {
-        out.println("Proof from " + getClientInfo() + " to " + other.getClientInfo() + " on topic: " + currentTopic);
-    }
 }

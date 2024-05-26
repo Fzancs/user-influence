@@ -4,7 +4,7 @@ javac Proposer.java
 
 java Server
 
-java User localhost 1234
-java User localhost 1234
+java User 1 
+java User 1
 
-java Proposer --topic='Topic: hello'
+java Proposer --topic='need help ?'
