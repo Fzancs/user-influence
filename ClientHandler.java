@@ -40,33 +40,27 @@ class ClientHandler implements Runnable {
 
             if (choice == 1) { // choice 1
                 server.addClient(this);
-            //     List<ClientHandler> showCLients = new ArrayList<>(server.getClients());
-            //    System.out.println("Current Clients:");
-            //    for (ClientHandler client : showCLients) {
-            //        System.out.println(client);
-            //    }
-       
-               try {
-                   String opinion = in.readLine(); // recoit opinion de user
-                   List<ClientHandler> clients = new ArrayList<>(server.getClients());
-                   // Remove this ClientHandler from the list to avoid selecting itself
-                   clients.remove(this);
-       
-                   if (!clients.isEmpty()) {
-                       Random rand = new Random();
-                       int randomClientIndex = rand.nextInt(clients.size());
-                       ClientHandler selectedClient = clients.get(randomClientIndex);
-                    //    selectedClient.out.println(opinion); // send opinion to a random user
-                       selectedClient.shareTopicOpinion(opinion, this.getClientInfo());
+                try {
+                    String opinion = in.readLine(); // recoit opinion de user
+                    List<ClientHandler> clients = new ArrayList<>(server.getClients());
+                    // Remove this ClientHandler from the list to avoid selecting itself
+                    clients.remove(this);
+        
+                    if (!clients.isEmpty()) {
+                        Random rand = new Random();
+                        int randomClientIndex = rand.nextInt(clients.size());
+                        ClientHandler selectedClient = clients.get(randomClientIndex);
+                        //    selectedClient.out.println(opinion); // send opinion to a random user
+                        selectedClient.shareTopicOpinion(opinion, this.getClientInfo());
 
-                   } else {
-                       System.out.println("No other clients available to receive opinion.");
-                   }
-               } catch (IOException e) {
-                   System.out.println("Error reading input: " + e.getMessage());
+                    } else {
+                        System.out.println("No other clients available to receive opinion.");
+                    }
+                } catch (IOException e) {
+                    System.out.println("Error reading input: " + e.getMessage());
                    closeConnections();                        
                    break;
-               }
+                }
 
             } else if (choice == 2) { // creer topic
                 String topic = in.readLine();
@@ -86,6 +80,23 @@ class ClientHandler implements Runnable {
         }
     }
 
+    private void shareTopicOpinion(String input, int userID){
+        String[] parts = input.split(":");
+        String topicPart = parts[0];
+        double opinionPart = Double.parseDouble(parts[1]);
+        int preuvePart = Integer.parseInt(parts[2]);
+
+        out.println(topicPart +":"+ opinionPart + ":" + userID + ":" + preuvePart); // send topic, opinion, preuve from userId to a random user
+        System.out.println(this.getClientInfo() + " to " + userID + ", opinion:" + opinionPart + ", topic: " + topicPart + ", preuve: " + preuvePart);
+    }
+
+    public void broadcastTopic(String topic) {
+        List<ClientHandler> clients = server.getClients();
+        for (ClientHandler client : clients) {
+            System.out.println("Broadcasting topic '" + topic + "' to clients.");
+            client.out.println("Topic:" + topic);
+        }
+    }
 
     private void closeConnections() {
         try {
@@ -96,24 +107,6 @@ class ClientHandler implements Runnable {
             e.printStackTrace();
         }
         server.removeClient(this);
-    }
-
-    private void shareTopicOpinion(String input, int userID){
-        String[] parts = input.split(":");
-        String topicPart = parts[0];
-        double opinionPart = Double.parseDouble(parts[1]);
-        
-        out.println(topicPart +":"+ opinionPart + ":" + userID); // send topic, opinion, from userId to a random user
-        System.out.println(this.getClientInfo() + " to " + userID + ", opinion:" + opinionPart + ", topic: " + topicPart);
-    }
-
-    public void broadcastTopic(String topic) {
-        List<ClientHandler> clients = server.getClients();
-        for (ClientHandler client : clients) {
-            // client.setTopic(topic);
-            System.out.println("Broadcasting topic '" + topic + "' to clients.");
-            client.out.println("Topic:" + topic);
-        }
     }
 
     public Socket getSocket() {

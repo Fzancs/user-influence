@@ -6,14 +6,15 @@ import java.util.Random;
 import java.util.concurrent.*;
 
 public class User {
-    private Socket socket;
-    private BufferedReader input;
-    private PrintWriter output;
-    private Map<String, Double> topicOpinions = new ConcurrentHashMap<>();
+    protected Socket socket;
+    protected BufferedReader input;
+    protected PrintWriter output;
     private static final String DEFAULT_TOPIC = "help";
-    private Map<String, Double> influenceMap = new ConcurrentHashMap<>();
+    protected Map<String, Double> topicOpinions = new ConcurrentHashMap<>();
+    protected Map<String, Double> influenceMap = new ConcurrentHashMap<>();
     private String selectedTopic;
-    private double selectedOpinion;
+    protected double selectedOpinion;
+    private Map<String, Integer> evidenceMap = new ConcurrentHashMap<>();
 
     public User(String host, int port) throws IOException {
         // Connect to the server and setup input and output streams
@@ -22,12 +23,13 @@ public class User {
         this.output = new PrintWriter(socket.getOutputStream(), true);
         this.topicOpinions.put(DEFAULT_TOPIC, Math.round(Math.random() * 100.0) / 100.0); // Initialize default topic with a default opinion value
         this.selectedOpinion = Math.round(Math.random() * 100.0) / 100.0; // Initialize the opinion randomly
+        this.evidenceMap.put(DEFAULT_TOPIC, new Random().nextInt(7) + 1); // Initialize default topic with a default opinion value
 
         System.out.println("Connected to the server at " + host + ":" + port);
 
     }
 
-    private void closeEverything() {
+    public void closeEverything() {
         // Close all connections and streams
         try {
             if (input != null)
@@ -42,13 +44,24 @@ public class User {
     }
 
 
-    private void sendRandomTopicOpinion() {
+    public void sendRandomTopicOpinion() {
         List<String> topics = new ArrayList<>(topicOpinions.keySet());
         Random random = new Random();
         selectedTopic = topics.get(random.nextInt(topics.size()));
         selectedOpinion = topicOpinions.get(selectedTopic);
-        
-        output.println(selectedTopic + ":" + selectedOpinion); // topic + selectedOpinion
+
+        Integer tempEvidence = evidenceMap.get(selectedTopic);
+        int evidence;
+        if (tempEvidence != null) {
+            evidence = tempEvidence;
+        } else {
+            evidence = new Random().nextInt(7) + 1;
+            if (!evidenceMap.containsKey(selectedTopic)) {
+                evidenceMap.put(selectedTopic, evidence);
+            }
+        }    
+
+        output.println(selectedTopic + ":" + selectedOpinion + ":" + evidence); // topic + selectedOpinion + evidence
         // System.out.println("UserA Sending opinion: " + selectedOpinion + " on topic: " + selectedTopic);
     }
 
@@ -82,7 +95,6 @@ public class User {
                         String[] parts = newOp.split(":");
                         String topicPart = parts[1];
                         System.out.println("Received new topic: " + topicPart);
-
                         topicOpinions.put(topicPart, Math.round(Math.random() * 100.0) / 100.0);  //ajoute topic
                     }
                     else{
@@ -90,6 +102,7 @@ public class User {
                         String topicPart = parts[0];
                         double opinionPart = Double.parseDouble(parts[1]);
                         String whichUser = parts[2];
+                        // int evidencePart = Integer.parseInt(parts[3]);
 
                         Double influence = influenceMap.getOrDefault(whichUser, new Random().nextDouble());
                         influence = Math.round(influence * 100.0) / 100.0;
@@ -98,14 +111,13 @@ public class User {
                         System.out.println("Received opinion: " + opinionPart + ", topic: " + topicPart); 
 
                         double otherOpinion = Double.parseDouble(String.valueOf(opinionPart));
-
                         // When new user are entering add them an opinion to topics
                         Double tempOpinion = topicOpinions.get(topicPart);
                         selectedOpinion = tempOpinion != null ? tempOpinion : Math.round(Math.random() * 100.0) / 100.0;
 
                         selectedOpinion = selectedOpinion + (otherOpinion - selectedOpinion) * influenceMap.get(whichUser);
                         selectedOpinion = Math.round(selectedOpinion * 100.0) / 100.0; // Round to two decimal places
-                        System.out.println("New Opinion:" + selectedOpinion + ", influence: " +influenceMap.get(whichUser) + " from " + whichUser); // receive selectedOpinion from random user
+                        System.out.println("Updated Opinion:" + selectedOpinion + ", influence: " +influenceMap.get(whichUser) + " from " + whichUser); // receive selectedOpinion from random user
                         topicOpinions.put(topicPart, selectedOpinion);  //ajoute topic
                         // showAllOpinions(); 
                     }
@@ -162,11 +174,6 @@ public class User {
                 System.out.println(topic);
                 client.output.println(2);
                 client.output.println(topic);
-            }
-
-            else if(choice == 3){
-                // client.showAllOpinions();
-                System.out.println("Choice 3");
             }
             else{
                 System.out.println("Invalid choice.");
