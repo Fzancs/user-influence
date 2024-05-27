@@ -15,6 +15,7 @@ public class User {
     private String selectedTopic;
     protected double selectedOpinion;
     private Map<String, Integer> evidenceMap = new ConcurrentHashMap<>();
+    protected boolean isCT;  // Indicates if the user is a Critical Thinker
 
     public User(String host, int port) throws IOException {
         // Connect to the server and setup input and output streams
@@ -24,6 +25,7 @@ public class User {
         this.topicOpinions.put(DEFAULT_TOPIC, Math.round(Math.random() * 100.0) / 100.0); // Initialize default topic with a default opinion value
         this.selectedOpinion = Math.round(Math.random() * 100.0) / 100.0; // Initialize the opinion randomly
         this.evidenceMap.put(DEFAULT_TOPIC, new Random().nextInt(7) + 1); // Initialize default topic with a default opinion value
+        this.isCT = false;  // Indicates if the user is a Critical Thinker
 
         System.out.println("Connected to the server at " + host + ":" + port);
 
@@ -102,24 +104,27 @@ public class User {
                         String topicPart = parts[0];
                         double opinionPart = Double.parseDouble(parts[1]);
                         String whichUser = parts[2];
-                        // int evidencePart = Integer.parseInt(parts[3]);
+                        int evidencePart = Integer.parseInt(parts[3]);
 
-                        Double influence = influenceMap.getOrDefault(whichUser, new Random().nextDouble());
-                        influence = Math.round(influence * 100.0) / 100.0;
-                        influenceMap.put(whichUser, influence); // getUser() + influence
-
+                        Double influence = 0.0;
+                        influence = setInfluence(influence, whichUser);
                         System.out.println("Received opinion: " + opinionPart + ", topic: " + topicPart); 
-
-                        double otherOpinion = Double.parseDouble(String.valueOf(opinionPart));
-                        // When new user are entering add them an opinion to topics
-                        Double tempOpinion = topicOpinions.get(topicPart);
-                        selectedOpinion = tempOpinion != null ? tempOpinion : Math.round(Math.random() * 100.0) / 100.0;
-
-                        selectedOpinion = selectedOpinion + (otherOpinion - selectedOpinion) * influenceMap.get(whichUser);
-                        selectedOpinion = Math.round(selectedOpinion * 100.0) / 100.0; // Round to two decimal places
-                        System.out.println("Updated Opinion:" + selectedOpinion + ", influence: " +influenceMap.get(whichUser) + " from " + whichUser); // receive selectedOpinion from random user
-                        topicOpinions.put(topicPart, selectedOpinion);  //ajoute topic
-                        // showAllOpinions(); 
+                        
+                        // Si ce n'est pas CT alors executer
+                        if(!isCT() || evidencePart % 7 == 0) {
+                            double otherOpinion = Double.parseDouble(String.valueOf(opinionPart));
+                            // When new user are entering add them an opinion to topics
+                            Double tempOpinion = topicOpinions.get(topicPart);
+                            selectedOpinion = tempOpinion != null ? tempOpinion : Math.round(Math.random() * 100.0) / 100.0;
+                            selectedOpinion = selectedOpinion + (otherOpinion - selectedOpinion) * influenceMap.get(whichUser);
+                            selectedOpinion = Math.round(selectedOpinion * 100.0) / 100.0; // Round to two decimal places
+                            System.out.println("Updated Opinion:" + selectedOpinion + ", influence: " +influenceMap.get(whichUser) + " from " + whichUser); // receive selectedOpinion from random user
+                            topicOpinions.put(topicPart, selectedOpinion);  //ajoute topic
+                            // showAllOpinions(); 
+                        }
+                        else {
+                            System.out.println("Opinion not updated, insufficient evidence: " + evidencePart);
+                        }
                     }
                 }
             } catch (IOException e) {
@@ -135,6 +140,17 @@ public class User {
         for (Map.Entry<String, Double> entry : topicOpinions.entrySet()) {
             System.out.println("Topic: " + entry.getKey() + ", Opinion: " + entry.getValue());
         }
+    }
+
+    public Double setInfluence(Double influence, String whichUser) {
+        influence = influenceMap.getOrDefault(whichUser, new Random().nextDouble());
+        influence = Math.round(influence * 100.0) / 100.0;
+        influenceMap.put(whichUser, influence); // getUser() + influence
+        return influence;
+    }
+
+    public boolean isCT() {
+        return isCT;
     }
 
     public static void main(String[] args) {
@@ -166,7 +182,7 @@ public class User {
             else if(choice == 2){ // Ajouter topic avec user ou Proposer
 
                 if (args.length < 2) {
-                    System.err.println("Usage: java Proposer --topic='nouveau topic'");
+                    System.err.println("Usage: java Proposer 2 --topic='nouveau topic'");
                     System.exit(1);
                 }
 

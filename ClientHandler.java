@@ -38,38 +38,68 @@ class ClientHandler implements Runnable {
             System.out.println("choice: " + choice);
             while (choice >= 1) {
 
-            if (choice == 1) { // choice 1
-                server.addClient(this);
-                try {
-                    String opinion = in.readLine(); // recoit opinion de user
-                    List<ClientHandler> clients = new ArrayList<>(server.getClients());
-                    // Remove this ClientHandler from the list to avoid selecting itself
-                    clients.remove(this);
-        
-                    if (!clients.isEmpty()) {
-                        Random rand = new Random();
-                        int randomClientIndex = rand.nextInt(clients.size());
-                        ClientHandler selectedClient = clients.get(randomClientIndex);
-                        //    selectedClient.out.println(opinion); // send opinion to a random user
-                        selectedClient.shareTopicOpinion(opinion, this.getClientInfo());
+                if (choice == 1) { // choice 1 gere User et CT
+                    server.addClient(this);
+                    try {
+                        String opinion = in.readLine(); // recoit opinion de user
+                        List<ClientHandler> clients = new ArrayList<>(server.getClients());
+                        // Remove this ClientHandler from the list to avoid selecting itself
+                        clients.remove(this);
+            
+                        if (!clients.isEmpty()) {
+                            Random rand = new Random();
+                            int randomClientIndex = rand.nextInt(clients.size());
+                            ClientHandler selectedClient = clients.get(randomClientIndex);
+                            selectedClient.shareTopicOpinion(opinion, this.getClientInfo());
 
-                    } else {
-                        System.out.println("No other clients available to receive opinion.");
+                        } else {
+                            System.out.println("No other clients available to receive opinion.");
+                        }
+                    } catch (IOException e) {
+                        System.out.println("Error reading input: " + e.getMessage());
+                    closeConnections();                        
+                    break;
                     }
-                } catch (IOException e) {
-                    System.out.println("Error reading input: " + e.getMessage());
-                   closeConnections();                        
-                   break;
-                }
 
-            } else if (choice == 2) { // creer topic
-                String topic = in.readLine();
-                System.out.println("topic: " + topic);
-                broadcastTopic(topic);
-            } else {
-                System.out.println("Invalid choice: " + choice);
-                closeConnections();
-            }         
+                } else if (choice == 2) { // creer topic
+                    String topic = in.readLine();
+                    System.out.println("topic: " + topic);
+                    broadcastTopic(topic);
+                } else if (choice == 3) { // gere Influencers (envoie a tout le monde)
+                    server.addClient(this);
+                    try {
+                        String opinion = in.readLine(); 
+                        List<ClientHandler> clients = new ArrayList<>(server.getClients());
+                        clients.remove(this);
+
+                        //  each client selection is random and independent each time
+                        if (!clients.isEmpty()) {
+                            Set<Integer> pickedIndices = new HashSet<>();
+                            int numberOfClients = clients.size();
+                            int numberToSend = new Random().nextInt(numberOfClients / 2 + 1);  // Ensure at least one
+                        
+                            while (pickedIndices.size() < numberToSend) {
+                                int randomIndex = new Random().nextInt(numberOfClients);
+                                if (!pickedIndices.contains(randomIndex)) {
+                                    pickedIndices.add(randomIndex);
+                                    ClientHandler client = clients.get(randomIndex);
+                                    client.shareTopicOpinion(opinion, client.getClientInfo());
+                                    System.out.println("Influencers sended opinion to "+ client.getClientInfo() );
+                                }
+                            }
+                        } else {
+                            System.out.println("No other clients available to receive opinion.");
+                        }
+                    } catch (IOException e) {
+                        System.out.println("Error reading input: " + e.getMessage());
+                    closeConnections();                        
+                    break;
+                    }
+
+                } else {
+                    System.out.println("Invalid choice: " + choice);
+                    closeConnections();
+                }         
             }
 
         } catch (IOException e) {
