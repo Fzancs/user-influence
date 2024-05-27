@@ -1,10 +1,10 @@
-javac Server.java
-javac User.java
-javac Proposer.java
+javac Server.java User.java Proposer.java Influencers.java CT.java CF.java 
 
 java Server
 
-java User 1 
 java User 1
-
 java Proposer --topic='need help ?'
+java Influencers
+java CT 
+java CF
+

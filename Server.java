@@ -19,7 +19,6 @@ public class Server {
             Socket clientSocket = serverSocket.accept();
             ClientHandler clientHandler = new ClientHandler(clientSocket, this);
             System.out.println("Client  " + clientHandler);
-            // clients.add(clientHandler);
             pool.execute(clientHandler);
         }
     }

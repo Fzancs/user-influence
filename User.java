@@ -9,13 +9,14 @@ public class User {
     protected Socket socket;
     protected BufferedReader input;
     protected PrintWriter output;
-    private static final String DEFAULT_TOPIC = "help";
+    protected static final String DEFAULT_TOPIC = "help";
     protected Map<String, Double> topicOpinions = new ConcurrentHashMap<>();
     protected Map<String, Double> influenceMap = new ConcurrentHashMap<>();
-    private String selectedTopic;
+    protected String selectedTopic;
     protected double selectedOpinion;
     private Map<String, Integer> evidenceMap = new ConcurrentHashMap<>();
     protected boolean isCT;  // Indicates if the user is a Critical Thinker
+    protected boolean isInfluencers;  // Indicates if the user is a Influencer
 
     public User(String host, int port) throws IOException {
         // Connect to the server and setup input and output streams
@@ -26,6 +27,7 @@ public class User {
         this.selectedOpinion = Math.round(Math.random() * 100.0) / 100.0; // Initialize the opinion randomly
         this.evidenceMap.put(DEFAULT_TOPIC, new Random().nextInt(7) + 1); // Initialize default topic with a default opinion value
         this.isCT = false;  // Indicates if the user is a Critical Thinker
+        this.isInfluencers = false;  // Indicates if the user is a Influencer
 
         System.out.println("Connected to the server at " + host + ":" + port);
 
@@ -62,7 +64,6 @@ public class User {
                 evidenceMap.put(selectedTopic, evidence);
             }
         }    
-
         output.println(selectedTopic + ":" + selectedOpinion + ":" + evidence); // topic + selectedOpinion + evidence
         // System.out.println("UserA Sending opinion: " + selectedOpinion + " on topic: " + selectedTopic);
     }
@@ -75,7 +76,6 @@ public class User {
         executor.scheduleAtFixedRate(() -> {
 
             try {
-                // output.println(1);
                 // System.out.println("frequency: " + frequency);
                 sendRandomTopicOpinion();
             } catch (Exception e) {
@@ -83,7 +83,7 @@ public class User {
                 executor.shutdown(); // Shut down the executor on error
                 closeEverything();
             }
-        }, 5, frequency, TimeUnit.SECONDS); // Start immediately, repeat every 5 seconds
+        }, 5, frequency, TimeUnit.SECONDS); // Start after 5seconds , repeat every "frequency" seconds
     }
 
     public void listenForMessages() {
@@ -104,7 +104,10 @@ public class User {
                         String topicPart = parts[0];
                         double opinionPart = Double.parseDouble(parts[1]);
                         String whichUser = parts[2];
-                        int evidencePart = Integer.parseInt(parts[3]);
+                        int evidencePart = 0;
+                        if(!isInfluencers()){
+                            evidencePart = Integer.parseInt(parts[3]);
+                        }
 
                         Double influence = 0.0;
                         influence = setInfluence(influence, whichUser);
@@ -116,7 +119,8 @@ public class User {
                             // When new user are entering add them an opinion to topics
                             Double tempOpinion = topicOpinions.get(topicPart);
                             selectedOpinion = tempOpinion != null ? tempOpinion : Math.round(Math.random() * 100.0) / 100.0;
-                            selectedOpinion = selectedOpinion + (otherOpinion - selectedOpinion) * influenceMap.get(whichUser);
+                            // selectedOpinion = selectedOpinion + (otherOpinion - selectedOpinion) * influenceMap.get(whichUser);
+                            selectedOpinion = updateOpinion(selectedOpinion, otherOpinion, whichUser);
                             selectedOpinion = Math.round(selectedOpinion * 100.0) / 100.0; // Round to two decimal places
                             System.out.println("Updated Opinion:" + selectedOpinion + ", influence: " +influenceMap.get(whichUser) + " from " + whichUser); // receive selectedOpinion from random user
                             topicOpinions.put(topicPart, selectedOpinion);  //ajoute topic
@@ -149,8 +153,21 @@ public class User {
         return influence;
     }
 
+    public Double updateOpinion(Double selectedOpinion, Double otherOpinion, String whichUser) {
+        selectedOpinion = selectedOpinion + (otherOpinion - selectedOpinion) * influenceMap.get(whichUser);
+        return selectedOpinion;
+    }
+
+    public Double getOpinionForTopic(String topic) {
+        return topicOpinions.get(topic);
+    }
+
     public boolean isCT() {
         return isCT;
+    }
+
+    public boolean isInfluencers() {
+        return isInfluencers;
     }
 
     public static void main(String[] args) {
@@ -179,10 +196,9 @@ public class User {
                 client.listenForMessages();
         
             }
-            else if(choice == 2){ // Ajouter topic avec user ou Proposer
-
+            else if(choice == 2){ // Ajouter topic avec User comme Proposer
                 if (args.length < 2) {
-                    System.err.println("Usage: java Proposer 2 --topic='nouveau topic'");
+                    System.err.println("Usage: java User 2 --topic='nouveau topic'");
                     System.exit(1);
                 }
 

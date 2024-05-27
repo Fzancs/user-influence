@@ -18,7 +18,7 @@ public class CT extends User{
 
         try {
             CT ct = new CT(host, port);
-
+            System.out.println("Opinion: " + ct.topicOpinions.get(DEFAULT_TOPIC) + " on topic: " + DEFAULT_TOPIC) ;
             ct.output.println(1);
             ct.startSending();
             ct.listenForMessages();
