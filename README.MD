@@ -1,3 +1,4 @@
+```
 javac Server.java User.java Proposer.java Influencers.java CT.java CF.java 
 
 java Server
@@ -8,3 +9,4 @@ java Influencers
 java CT 
 java CF
 
+```
