@@ -86,7 +86,7 @@ public class User {
         }, 5, frequency, TimeUnit.SECONDS); // Start after 5seconds , repeat every "frequency" seconds
     }
 
-    public void listenForMessages() {
+    public synchronized void listenForMessages() {
         new Thread(() -> {
             try {
                 String newOp;
