@@ -1,8 +1,6 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.*;
 
 public class User {
@@ -101,12 +99,19 @@ public class User {
                     }
                     else{
                         String[] parts = newOp.split(":");
+                        if (parts.length < 3) {
+                            System.out.println("Erreur : message incomplet reçu -> " + newOp);
+                            return;
+                        }
+
                         String topicPart = parts[0];
                         double opinionPart = Double.parseDouble(parts[1]);
                         String whichUser = parts[2];
+
                         int evidencePart = 0;
-                        if(!isInfluencers()){
+                        if (!isInfluencers() && parts.length > 3) { // Vérification avant d'accéder à parts[3]
                             evidencePart = Integer.parseInt(parts[3]);
+                            System.out.println("Received evidence: " + evidencePart);
                         }
 
                         Double influence = 0.0;
